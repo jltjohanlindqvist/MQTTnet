@@ -56,6 +56,17 @@ namespace MQTTnet.Client
 
         public IMqttClientOptions Options { get; private set; }
 
+        ~MqttClient()
+        {
+            try
+            {
+                _logger.Verbose($"ACC Finalizing MqttClient. HashCode:{GetHashCode()}");
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         public async Task<MqttClientAuthenticateResult> ConnectAsync(IMqttClientOptions options, CancellationToken cancellationToken)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
@@ -255,6 +266,7 @@ namespace MQTTnet.Client
 
         private async Task DisconnectInternalAsync(Task sender, Exception exception, MqttClientAuthenticateResult authenticateResult)
         {
+            _logger.Verbose("ACC Disconnecting Internal");
             var clientWasConnected = IsConnected;
 
             TryInitiateDisconnect();
@@ -269,8 +281,10 @@ namespace MQTTnet.Client
                     await _adapter.DisconnectAsync(Options.CommunicationTimeout, CancellationToken.None).ConfigureAwait(false);
                 }
 
+                _logger.Verbose("ACC Disconnect: awaiting tasks");
                 await WaitForTaskAsync(_packetReceiverTask, sender).ConfigureAwait(false);
                 await WaitForTaskAsync(_keepAlivePacketsSenderTask, sender).ConfigureAwait(false);
+                _logger.Verbose("ACC Disconnect: finished awaiting tasks");
 
                 _logger.Verbose("Disconnected from adapter.");
             }
@@ -626,16 +640,21 @@ namespace MQTTnet.Client
             return true;
         }
 
-        private static async Task WaitForTaskAsync(Task task, Task sender)
+        private async Task WaitForTaskAsync(Task task, Task sender)
         {
             if (task == sender || task == null)
             {
+                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == sender or task == null");
                 return;
             }
 
             try
             {
+                _logger.Verbose($"ACC Awaiting task {task.Id}");
+
                 await task.ConfigureAwait(false);
+
+                _logger.Verbose($"ACC Completed awaiting task {task.Id}");
             }
             catch (OperationCanceledException)
             {
