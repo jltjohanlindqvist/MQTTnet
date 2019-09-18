@@ -474,7 +474,7 @@ namespace MQTTnet.Client
 
                 if (!DisconnectIsPending())
                 {
-                    await DisconnectInternalAsync(_packetReceiverTask, exception, null).ConfigureAwait(false);
+                    await DisconnectInternalAsync(null, exception, null).ConfigureAwait(false);
                 }
             }
             finally
