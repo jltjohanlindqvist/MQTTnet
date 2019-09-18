@@ -282,8 +282,10 @@ namespace MQTTnet.Client
                 }
 
                 _logger.Verbose("ACC Disconnect: awaiting tasks");
-                await WaitForTaskAsync(_packetReceiverTask, sender).ConfigureAwait(false);
-                await WaitForTaskAsync(_keepAlivePacketsSenderTask, sender).ConfigureAwait(false);
+                var receiverTask = WaitForTaskAsync(_packetReceiverTask, sender);
+                var keepAliveTask = WaitForTaskAsync(_keepAlivePacketsSenderTask, sender);
+
+                await Task.WhenAll(receiverTask, keepAliveTask).ConfigureAwait(false);
                 _logger.Verbose("ACC Disconnect: finished awaiting tasks");
 
                 _logger.Verbose("Disconnected from adapter.");
@@ -474,7 +476,7 @@ namespace MQTTnet.Client
 
                 if (!DisconnectIsPending())
                 {
-                    await DisconnectInternalAsync(null, exception, null).ConfigureAwait(false);
+                    await DisconnectInternalAsync(_packetReceiverTask, exception, null).ConfigureAwait(false);
                 }
             }
             finally
@@ -642,9 +644,26 @@ namespace MQTTnet.Client
 
         private async Task WaitForTaskAsync(Task task, Task sender)
         {
-            if (task == sender || task == null)
+            if (task == null)
             {
-                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == sender or task == null");
+                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == null");
+                return;
+            }
+
+            if (task == sender)
+            {
+                // Return here to avoid deadlocks, but first any eventual exception in the task
+                // must be handled to avoid not getting an unhandled task exception
+                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == sender");
+
+                if (!task.IsFaulted)
+                {
+                    return;
+                }
+
+                // By accessing the Exception property the exception is considered handled and will
+                // not result in an unhandled task exception later by the finalizer
+                _logger.Warning(task.Exception, "Exception when waiting for background task.");
                 return;
             }
 
