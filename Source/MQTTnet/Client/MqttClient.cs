@@ -360,11 +360,24 @@ namespace MQTTnet.Client
                 try
                 {
                     await _adapter.SendPacketAsync(requestPacket, Options.CommunicationTimeout, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    _logger.Warning(e, "Error when sending packet. '{0}'.", typeof(TResponsePacket).Name);
+                    packetAwaiter.Cancel();
+                }
+
+                try
+                {
                     return await packetAwaiter.WaitOneAsync(Options.CommunicationTimeout).ConfigureAwait(false);
                 }
-                catch (MqttCommunicationTimedOutException)
+                catch (Exception exception)
                 {
-                    _logger.Warning(null, "Timeout while waiting for packet of type '{0}'.", typeof(TResponsePacket).Name);
+                    if (exception is MqttCommunicationTimedOutException)
+                    {
+                        _logger.Warning(null, "Timeout while waiting for packet of type '{0}'.", typeof(TResponsePacket).Name);
+                    }
+
                     throw;
                 }
             }
