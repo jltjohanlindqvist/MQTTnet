@@ -363,7 +363,7 @@ namespace MQTTnet.Client
                 }
                 catch (Exception e)
                 {
-                    _logger.Warning(e, "Error when sending packet. '{0}'.", typeof(TResponsePacket).Name);
+                    _logger.Warning(e, "Error when sending packet of type '{0}'.", typeof(TResponsePacket).Name);
                     packetAwaiter.Cancel();
                 }
 
