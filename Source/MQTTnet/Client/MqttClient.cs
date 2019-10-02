@@ -56,17 +56,6 @@ namespace MQTTnet.Client
 
         public IMqttClientOptions Options { get; private set; }
 
-        ~MqttClient()
-        {
-            try
-            {
-                _logger.Verbose($"ACC Finalizing MqttClient. HashCode:{GetHashCode()}");
-            }
-            catch (Exception)
-            {
-            }
-        }
-
         public async Task<MqttClientAuthenticateResult> ConnectAsync(IMqttClientOptions options, CancellationToken cancellationToken)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
@@ -266,7 +255,6 @@ namespace MQTTnet.Client
 
         private async Task DisconnectInternalAsync(Task sender, Exception exception, MqttClientAuthenticateResult authenticateResult)
         {
-            _logger.Verbose("ACC Disconnecting Internal");
             var clientWasConnected = IsConnected;
 
             TryInitiateDisconnect();
@@ -274,27 +262,25 @@ namespace MQTTnet.Client
 
             try
             {
-	            if (_adapter != null)
-	            {
-		            _logger.Verbose("Disconnecting [Timeout={0}]", Options.CommunicationTimeout);
-		            await _adapter.DisconnectAsync(Options.CommunicationTimeout, CancellationToken.None).ConfigureAwait(false);
-	            }
+                if (_adapter != null)
+                {
+                    _logger.Verbose("Disconnecting [Timeout={0}]", Options.CommunicationTimeout);
+                    await _adapter.DisconnectAsync(Options.CommunicationTimeout, CancellationToken.None).ConfigureAwait(false);
+                }
 
-	            _logger.Verbose("Disconnected from adapter.");
+                _logger.Verbose("Disconnected from adapter.");
             }
             catch (Exception adapterException)
             {
-	            _logger.Warning(adapterException, "Error while disconnecting from adapter.");
+                _logger.Warning(adapterException, "Error while disconnecting from adapter.");
             }
 
             try
             {
-                _logger.Verbose("ACC Disconnect: awaiting tasks");
                 var receiverTask = WaitForTaskAsync(_packetReceiverTask, sender);
                 var keepAliveTask = WaitForTaskAsync(_keepAlivePacketsSenderTask, sender);
 
                 await Task.WhenAll(receiverTask, keepAliveTask).ConfigureAwait(false);
-                _logger.Verbose("ACC Disconnect: finished awaiting tasks");
             }
             catch (Exception e)
             {
@@ -665,16 +651,11 @@ namespace MQTTnet.Client
         {
             if (task == null)
             {
-                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == null");
                 return;
             }
 
             if (task == sender)
             {
-                // Return here to avoid deadlocks, but first any eventual exception in the task
-                // must be handled to avoid not getting an unhandled task exception
-                _logger.Verbose("ACC Returning from WaitForTaskAsync due to task == sender");
-
                 if (!task.IsFaulted)
                 {
                     return;
@@ -688,11 +669,7 @@ namespace MQTTnet.Client
 
             try
             {
-                _logger.Verbose($"ACC Awaiting task {task.Id}");
-
                 await task.ConfigureAwait(false);
-
-                _logger.Verbose($"ACC Completed awaiting task {task.Id}");
             }
             catch (OperationCanceledException)
             {
